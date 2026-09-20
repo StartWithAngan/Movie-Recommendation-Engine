@@ -1,0 +1,33 @@
+# Env / secrets
+.env
+backend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Node / Next.js
+node_modules/
+.next/
+frontend/.env.local
+
+# Raw dataset (large; document download instructions instead of committing)
+ml/data/raw/
+
+# Trained model artifacts (regenerate via ml/training pipeline)
+artifacts/*.pkl
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Generated ML artifacts
+artifacts/*.pkl
+artifacts-32m/
+
+# Local MongoDB data
+mongo_data/

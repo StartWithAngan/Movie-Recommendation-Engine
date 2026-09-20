@@ -1,0 +1,5 @@
+model,RMSE,MAE,Precision@K,Recall@K
+Popularity Baseline,,,0.0025,0.0246
+Content-Based,,,0.0016,0.0164
+Collaborative Filtering (SVD),0.9819,0.804,0.0106,0.1057
+Hybrid,,,0.0049,0.0492
