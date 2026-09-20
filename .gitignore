@@ -31,3 +31,4 @@ artifacts-32m/
 
 # Local MongoDB data
 mongo_data/
+.vercel

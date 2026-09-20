@@ -1,0 +1,36 @@
+# Local Python environment
+.venv/
+venv/
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Raw MovieLens dataset
+ml/data/
+
+# Node dependencies
+node_modules/
+frontend/node_modules/
+
+# Next.js generated files
+.next/
+frontend/.next/
+
+# Environment/secrets
+.env
+backend/.env
+frontend/.env.local
+
+# Git
+.git/
+.github/
+
+# Editor / OS files
+.vscode/
+.idea/
+.DS_Store
+
+# Test / local development files
+artifacts-32m/
