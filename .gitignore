@@ -32,3 +32,8 @@ artifacts-32m/
 # Local MongoDB data
 mongo_data/
 .vercel
+
+# Vercel / uv local build files
+backend/_uv/
+backend/pyproject.toml
+backend/uv.lock
