@@ -24,7 +24,7 @@ class MLArtifacts:
 
 
 def _load_artifacts(artifacts_dir: Path):
-    from ml.models.hybrid import HybridRecommender
+    from app.ml.models.hybrid import HybridRecommender
     content = joblib.load(artifacts_dir / "content_similarity.pkl")
     collaborative = joblib.load(artifacts_dir / "collaborative_model.pkl")
     popularity = joblib.load(artifacts_dir / "popularity_model.pkl")
