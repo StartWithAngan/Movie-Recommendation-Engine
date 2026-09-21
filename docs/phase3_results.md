@@ -1,40 +1,617 @@
+Next: **`docs/phase3_results.md`**. This one needs to reflect the **actual final MovieLens 32M run**, not the old development numbers.
+
+Replace the entire file with:
+
+````markdown
 # Phase 3 — MovieLens 32M Results
 
-## Dataset
+## 1. Overview
 
-The uploaded MovieLens 32M release was used. The local EDA pipeline measured:
+The final machine learning pipeline was trained and evaluated using the **MovieLens 32M** dataset.
 
-- Movies: 87,585
-- Ratings: 32,000,204 raw ratings; 31,475,072 valid ratings after the loader's validation/deduplication step
-- Users: 200,948
-- Mean rating: 3.5404
-- Rating standard deviation: 1.0590
-- Genres: 20
+The purpose of this phase was to:
 
-## Evaluation protocol
+- Validate the MovieLens 32M dataset
+- Train the recommendation models
+- Evaluate content-based, collaborative, hybrid, and popularity approaches
+- Compare recommendation quality using ranking metrics
+- Evaluate collaborative rating prediction using RMSE and MAE
+- Persist the trained models for use by the backend application
 
-A temporal leave-one-out split holds out each eligible user's latest timestamped interaction. Rating prediction metrics (RMSE/MAE) use the full held-out set. Ranking metrics are computed on a deterministic 50-user sample because scoring the full 87,585-item catalog for every one of ~200k users is unnecessarily expensive for a development run.
+---
 
-## Measured results
+# 2. Dataset
 
-| Model | RMSE | MAE | Precision@10 | Recall@10 |
-|---|---:|---:|---:|---:|
-| Popularity baseline | — | — | 0.0000 | 0.0000 |
-| Collaborative SVD | 0.9819 | 0.8040 | 0.0069 | 0.0690 |
+The MovieLens 32M dataset was used as the primary machine learning dataset.
 
-The popularity baseline does not produce RMSE/MAE because it is a ranking-only baseline. The ranking sample was intentionally kept small during this development run. These values should be presented as the current measured development benchmark, not as a universal or production-quality benchmark.
+The final dataset audit produced:
 
-## Artifacts
+| Property | Value |
+|---|---:|
+| Movies | 87,585 |
+| Ratings | 32,000,204 |
+| Users | 200,948 |
+| Mean Rating | 3.5404 |
+| Rating Standard Deviation | 1.0590 |
+| Genres | 20 |
 
-The trained artifacts are in `artifacts-32m/`:
+The dataset files used by the project are:
 
-- `collaborative_model.pkl`
-- `content_similarity.pkl`
-- `popularity_model.pkl`
-- `hybrid_model.pkl`
-- `movie_metadata.pkl`
-- `evaluation_results.csv`
+```text
+ml/data/raw/ml-32m/
+├── checksums.txt
+├── links.csv
+├── movies.csv
+├── ratings.csv
+├── README.txt
+└── tags.csv
+````
 
-## Engineering note
+The dataset is not committed to the Git repository because of its large size.
 
-The collaborative model uses SciPy sparse SVD (`svds`) rather than a dense similarity matrix. This was selected after benchmarking the 32M dataset on a constrained development environment: the initial randomized-SVD path exceeded the available memory, while the sparse SVD implementation trained successfully with a substantially lower peak memory footprint.
+---
+
+# 3. Data Validation
+
+The MovieLens 32M dataset was validated before training.
+
+The validation process checks:
+
+* Required files
+* Expected columns
+* Data types
+* Rating values
+* Movie references
+* Duplicate records
+* Timestamp information
+* Genre information
+
+The final dataset contained:
+
+```text
+Movies:       87,585
+Ratings:      32,000,204
+Users:        200,948
+Genres:       20
+```
+
+The rating distribution had:
+
+```text
+Mean rating: 3.5404
+Std. dev.:   1.0590
+```
+
+---
+
+# 4. Evaluation Methodology
+
+The evaluation uses a **chronological per-user holdout** strategy.
+
+For each eligible user:
+
+```text
+User Rating History
+        │
+        ▼
+Sort by timestamp
+        │
+        ├─────────────────┐
+        │                 │
+        ▼                 ▼
+Training Ratings     Held-Out Rating
+        │                 │
+        ▼                 │
+Train Models              │
+        │                 │
+        ▼                 │
+Generate Recommendations  │
+        │                 │
+        └────────┬────────┘
+                 ▼
+        Compare predictions
+        with held-out data
+```
+
+The held-out interaction is not used when generating recommendations for that evaluation case.
+
+This helps reduce temporal data leakage and better represents the situation where the system recommends items based on a user's previous history.
+
+---
+
+# 5. Models Evaluated
+
+Four recommendation approaches were evaluated.
+
+## 5.1 Popularity Baseline
+
+The popularity model provides a non-personalized baseline.
+
+It recommends movies according to their popularity/rating information without using personalized user preferences.
+
+This establishes a simple reference point for the machine learning approaches.
+
+---
+
+## 5.2 Content-Based Model
+
+The content-based model represents movies using genre information.
+
+The pipeline is:
+
+```text
+Movie Genres
+     ↓
+TF-IDF
+     ↓
+Sparse Movie Vectors
+     ↓
+Cosine Similarity
+     ↓
+Similar Movies
+```
+
+The model can recommend movies that have similar genre characteristics to movies the user has rated highly.
+
+---
+
+## 5.3 Collaborative SVD Model
+
+The collaborative model learns patterns from the user-item rating matrix.
+
+The implementation uses SciPy sparse SVD:
+
+```python
+scipy.sparse.linalg.svds
+```
+
+The model learns latent user and item factors:
+
+```text
+R ≈ U × Vᵀ
+```
+
+where:
+
+* `R` = user-item rating matrix
+* `U` = user latent factors
+* `V` = item latent factors
+
+The final model uses **12 latent factors**.
+
+---
+
+## 5.4 Hybrid Model
+
+The hybrid model combines content-based and collaborative recommendation signals.
+
+The final implementation uses rank/percentile normalization before combining the model outputs.
+
+```text
+Content Scores
+      ↓
+Rank Normalization
+      │
+      ├─────────────┐
+      │             │
+      ▼             ▼
+                Hybrid Score
+      ▲             │
+      │             ▼
+      └────── Final Ranking
+      ▲
+      │
+Collaborative Scores
+      │
+Rank Normalization
+```
+
+Rank normalization was used because the raw score distributions of the two models are different.
+
+It also prevents tightly clustered collaborative predictions from being effectively ignored when combined with content scores.
+
+---
+
+# 6. Final Evaluation Results
+
+The final measured results are:
+
+| Model               |   RMSE |    MAE | Precision@10 | Recall@10 |
+| ------------------- | -----: | -----: | -----------: | --------: |
+| Popularity Baseline |      — |      — |       0.0025 |    0.0246 |
+| Content-Based       |      — |      — |       0.0016 |    0.0164 |
+| Collaborative SVD   | 0.9819 | 0.8040 |       0.0106 |    0.1057 |
+| Hybrid              |      — |      — |       0.0049 |    0.0492 |
+
+The results were generated by the final training/evaluation pipeline and saved to:
+
+```text
+artifacts/evaluation_results.csv
+```
+
+---
+
+# 7. RMSE and MAE
+
+RMSE and MAE evaluate rating prediction.
+
+### RMSE
+
+The collaborative model achieved:
+
+```text
+RMSE = 0.9819
+```
+
+RMSE is calculated as:
+
+```text
+RMSE = √(Σ(y - ŷ)² / n)
+```
+
+It gives greater influence to larger prediction errors.
+
+---
+
+### MAE
+
+The collaborative model achieved:
+
+```text
+MAE = 0.8040
+```
+
+MAE is calculated as:
+
+```text
+MAE = Σ|y - ŷ| / n
+```
+
+It represents the average absolute difference between predicted and actual ratings.
+
+---
+
+# 8. Precision@10
+
+Precision@10 measures how many recommendations in the top 10 are relevant.
+
+The final results were:
+
+| Model               | Precision@10 |
+| ------------------- | -----------: |
+| Popularity Baseline |       0.0025 |
+| Content-Based       |       0.0016 |
+| Collaborative SVD   |       0.0106 |
+| Hybrid              |       0.0049 |
+
+The metric is calculated conceptually as:
+
+```text
+Precision@10 =
+Relevant items in top 10
+------------------------
+10
+```
+
+---
+
+# 9. Recall@10
+
+Recall@10 measures how much of the user's relevant item set was retrieved in the top 10.
+
+The final results were:
+
+| Model               | Recall@10 |
+| ------------------- | --------: |
+| Popularity Baseline |    0.0246 |
+| Content-Based       |    0.0164 |
+| Collaborative SVD   |    0.1057 |
+| Hybrid              |    0.0492 |
+
+Conceptually:
+
+```text
+Recall@10 =
+Relevant items retrieved in top 10
+----------------------------------
+All relevant items
+```
+
+---
+
+# 10. Interpretation of the Results
+
+The evaluation demonstrates that the collaborative model captured useful information from the user-item rating matrix.
+
+The measured collaborative results were:
+
+```text
+RMSE:         0.9819
+MAE:          0.8040
+Precision@10: 0.0106
+Recall@10:    0.1057
+```
+
+The hybrid model produced:
+
+```text
+Precision@10: 0.0049
+Recall@10:    0.0492
+```
+
+The hybrid system combines different recommendation signals and is used by the application as the final recommendation strategy.
+
+The results should be interpreted within the project's evaluation protocol and dataset rather than treated as universal measures of recommendation quality.
+
+---
+
+# 11. Model Artifacts
+
+The training pipeline generates persisted artifacts used by the backend.
+
+The final artifact directory contains:
+
+```text
+artifacts/
+├── collaborative_model.pkl
+├── content_similarity.pkl
+├── evaluation_results.csv
+├── movie_metadata.pkl
+└── popularity_model.pkl
+```
+
+These artifacts allow the FastAPI application to load trained models during startup rather than retraining them for every recommendation request.
+
+---
+
+# 12. Training Pipeline
+
+The complete training pipeline is implemented in:
+
+```text
+ml/training/train.py
+```
+
+The general flow is:
+
+```text
+MovieLens 32M
+      ↓
+Load and validate
+      ↓
+Chronological train/test split
+      ↓
+Train popularity model
+      ↓
+Train content model
+      ↓
+Train collaborative SVD
+      ↓
+Build hybrid recommender
+      ↓
+Evaluate all models
+      ↓
+Save artifacts
+```
+
+The pipeline is designed to avoid unnecessarily loading multiple copies of the full ratings dataset into memory.
+
+---
+
+# 13. Collaborative Model Engineering
+
+MovieLens 32M is significantly larger than the smaller MovieLens datasets commonly used in classroom demonstrations.
+
+A dense user-item matrix would be inefficient because most user/movie combinations have no rating.
+
+The implementation therefore uses sparse matrices.
+
+```text
+Large Rating Dataset
+        ↓
+Sparse User-Item Matrix
+        ↓
+Sparse SVD
+        ↓
+Latent Factors
+```
+
+The final implementation uses:
+
+```text
+Algorithm: Sparse SVD
+Library:   SciPy
+Function:  scipy.sparse.linalg.svds
+Factors:   12
+```
+
+---
+
+# 14. Hybrid Ranking Improvement
+
+During development, the hybrid recommender initially used min-max score normalization.
+
+The collaborative predictions for individual users were often tightly clustered.
+
+This caused the normalized collaborative signal to become nearly constant for some users, reducing its influence on the final ranking.
+
+The implementation was changed to rank/percentile normalization.
+
+The final approach:
+
+```text
+Model Scores
+     ↓
+Rank candidates
+     ↓
+Convert ranks to normalized scores
+     ↓
+Apply configurable weights
+     ↓
+Generate final ranking
+```
+
+This allows the hybrid model to preserve the relative ordering produced by each recommendation model.
+
+---
+
+# 15. Application-Level Personalization
+
+The production application stores user ratings in MongoDB.
+
+When a user rates movies, the backend can use those ratings to generate personalized recommendations.
+
+The recommendation flow is:
+
+```text
+Application User
+       ↓
+MongoDB Ratings
+       ↓
+Recommendation Service
+       ↓
+Content Signal + Collaborative Signal
+       ↓
+Hybrid Ranking
+       ↓
+Recommendation API
+       ↓
+Next.js Frontend
+```
+
+A new user without rating history receives a cold-start recommendation strategy.
+
+After the user provides ratings, personalized recommendations become available.
+
+---
+
+# 16. Recommendation Explanations
+
+The recommendation API includes a human-readable explanation.
+
+Examples:
+
+```text
+Similar to movies you rated highly
+```
+
+```text
+Based on your rating patterns
+```
+
+These explanations help users understand why a movie appeared in their recommendation list.
+
+---
+
+# 17. Engineering Verification
+
+The final project was tested at both the machine learning and backend levels.
+
+### ML tests
+
+```text
+13 passed
+```
+
+### Backend tests
+
+```text
+10 passed
+```
+
+Production functionality was also manually verified for:
+
+* User registration
+* User login
+* JWT authentication
+* Movie listing
+* Movie search
+* Movie retrieval
+* Rating submission
+* Rating retrieval
+* Cold-start recommendations
+* Personalized recommendations
+* Similar movie recommendations
+* MongoDB connectivity
+* ML artifact loading
+
+---
+
+# 18. Limitations
+
+The current evaluation has several limitations.
+
+### Content Features
+
+The content model primarily uses movie genres.
+
+It does not currently use:
+
+* Plot summaries
+* Cast
+* Directors
+* Reviews
+* Keywords
+* Embeddings from large language models
+
+### Collaborative Model
+
+The global collaborative model is trained on the static MovieLens dataset.
+
+Application-user ratings can be used for user-factor inference, but the complete MovieLens factorization is not automatically retrained after every new application rating.
+
+### Evaluation
+
+The reported metrics are specific to the implemented dataset, split strategy, relevance definition, and evaluation configuration.
+
+They should not be interpreted as universal benchmarks for recommendation systems.
+
+---
+
+# 19. Future Improvements
+
+Possible improvements include:
+
+* Richer movie metadata
+* Plot-based TF-IDF
+* Text embeddings
+* Cast/director features
+* More advanced collaborative filtering
+* Neural recommendation models
+* Automated retraining
+* Model versioning
+* A/B testing
+* Diversity-aware ranking
+* Novelty-aware ranking
+* Real-time user feedback
+* Recommendation monitoring
+
+---
+
+# 20. Conclusion
+
+The final MovieLens 32M experiment demonstrates a complete machine learning recommendation pipeline.
+
+The system includes:
+
+```text
+Dataset Processing
+       ↓
+Content-Based Filtering
+       +
+Collaborative Filtering
+       ↓
+Hybrid Ranking
+       ↓
+Evaluation
+       ↓
+Persisted Model Artifacts
+       ↓
+Production Recommendation API
+```
+
+The resulting models are integrated into the full-stack Movie Recommendation Engine and exposed through the production application.
+
+The experiment provides both machine learning evaluation and a working application-level demonstration of personalized movie recommendation.
+
+````
