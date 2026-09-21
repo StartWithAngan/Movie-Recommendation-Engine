@@ -37,3 +37,6 @@ mongo_data/
 backend/_uv/
 backend/pyproject.toml
 backend/uv.lock
+
+# Production ML artifacts bundled with Vercel backend
+backend/artifacts/*.pkl
