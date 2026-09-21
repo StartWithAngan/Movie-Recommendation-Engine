@@ -11,6 +11,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+ARTIFACTS_ROOT = Path(__file__).resolve().parent / "artifacts"
+
 from app.core.config import get_settings
 from app.api import auth, movies, ratings, recommendations, watchlist, profile
 
@@ -42,9 +44,7 @@ async def lifespan(app: FastAPI):
     await app.state.db.users.create_index("email", unique=True)
     await app.state.db.ratings.create_index([("user_id", 1), ("movie_id", 1)], unique=True)
     await app.state.db.watchlist.create_index([("user_id", 1), ("movie_id", 1)], unique=True)
-    artifacts_dir = Path(settings.artifacts_dir)
-    if not artifacts_dir.is_absolute():
-        artifacts_dir = (ROOT / artifacts_dir).resolve()
+    artifacts_dir = ARTIFACTS_ROOT
     try:
         app.state.ml_artifacts = _load_artifacts(artifacts_dir)
     except FileNotFoundError:
