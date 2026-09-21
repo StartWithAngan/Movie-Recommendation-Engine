@@ -1023,5 +1023,3 @@ Vercel
 ```
 
 This architecture provides a complete pipeline from dataset processing and machine learning through to a functional full-stack recommendation application.
-
-````

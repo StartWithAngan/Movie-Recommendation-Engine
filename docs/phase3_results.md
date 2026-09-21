@@ -613,5 +613,3 @@ Production Recommendation API
 The resulting models are integrated into the full-stack Movie Recommendation Engine and exposed through the production application.
 
 The experiment provides both machine learning evaluation and a working application-level demonstration of personalized movie recommendation.
-
-````

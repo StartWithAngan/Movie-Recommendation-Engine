@@ -937,7 +937,4 @@ Next.js
 Production Deployment
 ```
 
-The application has been tested locally and its core production functionality has been verified end-to-end.
-
-````
-
+The application has been tested locally and its core production functionality has been verified e
