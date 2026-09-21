@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const TOKEN_KEY = "cineml_access_token";
 
 /** Thrown for any non-2xx response, with a user-safe message and the HTTP status. */
